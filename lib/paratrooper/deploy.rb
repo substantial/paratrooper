@@ -105,7 +105,7 @@ module Paratrooper
         push_repo &&
         run_migrations &&
         app_restart
-      ) &&
+      )
       deactivate_maintenance_mode &&
       warm_instance
     end
