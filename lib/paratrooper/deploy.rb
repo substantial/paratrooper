@@ -1,7 +1,6 @@
 require 'paratrooper/heroku_wrapper'
 require 'paratrooper/system_caller'
 require 'paratrooper/notifiers/screen_notifier'
-require 'paratrooper/pending_migration_check'
 require 'paratrooper/callbacks'
 
 module Paratrooper
@@ -12,7 +11,7 @@ module Paratrooper
     include Callbacks
 
     attr_accessor :app_name, :notifiers, :system_caller, :heroku, :tag_name,
-      :match_tag_name, :protocol, :deployment_host, :migration_check, :debug,
+      :match_tag_name, :protocol, :deployment_host, :debug,
       :maintenance_mode
 
     alias_method :tag=, :tag_name=
@@ -36,8 +35,6 @@ module Paratrooper
     #                                application (optional, default: 'http').
     #            :deployment_host  - String host name to be used in git URL
     #                                (optional, default: 'heroku.com').
-    #            :migration_check  - Object responsible for checking pending
-    #                                migrations (optional).
     #            :maintenance_mode - Boolean whether to trigger maintenance
     #                                mode on and off during deployment
     #                                (default: true)
@@ -54,7 +51,6 @@ module Paratrooper
       @deployment_host  = options[:deployment_host] || 'heroku.com'
       @debug            = options[:debug] || false
       @maintenance_mode = options.fetch(:maintenance_mode, true)
-      self.migration_check = options[:migration_check]
       block.call(self) if block_given?
     end
 
@@ -121,7 +117,6 @@ module Paratrooper
     # Public: Runs rails database migrations on your application.
     #
     def run_migrations
-      return unless pending_migrations?
       callback(:run_migrations) do
         notify(:run_migrations)
         heroku.run_migrations
@@ -197,16 +192,6 @@ module Paratrooper
 
     def deployment_remote
       git_remote(deployment_host, app_name)
-    end
-
-    def pending_migrations?
-      migration_check.migrations_waiting?
-    end
-
-    def migration_check=(obj)
-      @migration_check = obj || PendingMigrationCheck.new(match_tag_name, heroku, system_caller)
-      @migration_check.last_deployed_commit
-      @migration_check
     end
 
     # Internal: Calls commands meant to go to system
